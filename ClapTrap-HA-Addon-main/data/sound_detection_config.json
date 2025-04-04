@@ -1,0 +1,15 @@
+{
+    "sound_detections": [
+        {
+            "name": "nouveau_son",
+            "labels": [
+                "Hands",
+                "Clapping"
+            ],
+            "exclude_labels": [],
+            "threshold": 0.3,
+            "webhook_url": "",
+            "cooldown": 1
+        }
+    ]
+}
