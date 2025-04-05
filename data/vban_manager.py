@@ -1,15 +1,24 @@
 from vban_detector_new import VBANDetector
 import time
+import os
 
 # Global VBAN detector instance
 vban_detector = None
+
+# Définir les chemins des fichiers
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+YAMNET_MODEL_FILE = os.path.join(BASE_DIR, 'yamnet.tflite')
+SOUND_CONFIG_FILE = os.path.join(BASE_DIR, 'sound_detection_config.json')
 
 def init_vban_detector():
     """Initialize the VBAN detector"""
     global vban_detector
     try:
         if vban_detector is None:
-            vban_detector = VBANDetector()
+            vban_detector = VBANDetector(
+                model_path=YAMNET_MODEL_FILE,
+                config_path=SOUND_CONFIG_FILE
+            )
             vban_detector.start_listening()
             # Attendre que le socket soit initialisé
             for _ in range(10):  # Attendre jusqu'à 1 seconde

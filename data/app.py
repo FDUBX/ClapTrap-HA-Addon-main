@@ -35,10 +35,12 @@ logging.getLogger('socketio.server').setLevel(logging.WARNING)
 app = Flask(__name__)
 app.logger.setLevel(logging.WARNING)
 app.config['SECRET_KEY'] = 'votre_clé_secrète_ici'
-socketio = SocketIO(app, 
+
+# Initialiser Socket.IO avec l'application Flask
+socketio.init_app(app,
     cors_allowed_origins="*",
-    logger=False,  
-    engineio_logger=False,  
+    logger=False,
+    engineio_logger=False,
     ping_timeout=60,
     ping_interval=25,
     async_mode='threading'
@@ -50,6 +52,16 @@ SETTINGS_FILE = os.path.join(BASE_DIR, 'settings.json')
 SETTINGS_BACKUP = os.path.join(BASE_DIR, 'settings.json.backup')
 SETTINGS_TEMP = os.path.join(BASE_DIR, 'settings.json.tmp')
 SOUND_CONFIG_FILE = os.path.join(BASE_DIR, 'sound_detection_config.json')
+YAMNET_MODEL_FILE = os.path.join(BASE_DIR, 'yamnet.tflite')
+
+# Initialiser le détecteur VBAN avec les bons chemins
+def init_vban():
+    detector = get_vban_detector()
+    if detector is None:
+        from vban_detector_new import VBANDetector
+        detector = VBANDetector(model_path=YAMNET_MODEL_FILE, config_path=SOUND_CONFIG_FILE)
+        return detector
+    return detector
 
 # Initialiser le détecteur VBAN
 init_vban()
@@ -1080,16 +1092,19 @@ class WebhookManager:
 
 @socketio.on('connect')
 def handle_connect():
-    print("🔌 Client connecté")
+    logging.info(f"Client connecté: {request.sid}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print("🔌 Client déconnecté")
+    logging.info(f"Client déconnecté: {request.sid}")
 
-@socketio.on('test_connection')
-def handle_test():
-    print("🔔 Test de connexion reçu")
-    socketio.emit('debug', {'message': 'Test serveur'})
+@socketio.on('ping_test')
+def handle_ping(data):
+    logging.info(f"Ping reçu du client: {data}")
+    socketio.emit('pong_test', {
+        'received_time': data.get('time'),
+        'server_time': int(time.time() * 1000)
+    })
 
 @app.route('/api/sound-config', methods=['GET'])
 def get_sound_config():

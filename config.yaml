@@ -1,7 +1,7 @@
 name: "ClapTrap"
 version: "2.2.0"
 slug: "claptrap"
-description: "Application de détection d'applaudissements en temps réel utilisant YAMNet, compatible avec les flux audio locaux et RTSP"
+description: "Application de détection de divers sons en temps réel utilisant YAMNet, compatible avec les flux audio locaux et RTSP"
 url: "https://github.com/FDUBX/ClapTrap-HA-Addon-main"
 arch:
   - aarch64

@@ -9,16 +9,23 @@ import collections
 import threading
 import logging
 import json
+from audio_detector import AudioDetector
 
 class VBANDetector:
-    def __init__(self, port=6980):
+    def __init__(self, model_path, config_path, port=6980):
         self.port = port
+        self.model_path = model_path
+        self.config_path = config_path
         self.sources = defaultdict(lambda: {'last_seen': 0, 'name': '', 'sample_rate': 0, 'channels': 0})
         self.running = False
         self._socket = None
         self.audio_callback = None
         self.source_callback = None
         self.target_sample_rate = 16000  # Taux d'échantillonnage cible
+        
+        # Initialiser l'AudioDetector
+        self.audio_detector = AudioDetector(model_path=self.model_path, config_path=self.config_path)
+        self.audio_detector.initialize()
         
         # Buffer circulaire avec une capacité de 1 seconde au taux d'échantillonnage cible
         self.buffer = collections.deque(maxlen=self.target_sample_rate)

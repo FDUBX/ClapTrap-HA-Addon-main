@@ -16,7 +16,7 @@ import pyaudio
 import collections
 import cv2
 import sys
-from events import send_clap_event, send_labels
+from events import send_clap_event, send_labels, socketio
 import threading
 from vban_manager import get_vban_detector  # Import the get_vban_detector function
 import warnings
@@ -217,7 +217,7 @@ def run_detection(model, max_results, score_threshold, overlapping_factor, socke
     """Fonction qui exécute la détection dans un thread séparé"""
     try:
         # Initialiser le détecteur audio
-        detector = AudioDetector(model, sample_rate=16000, buffer_duration=1.0)
+        detector = AudioDetector(model, config_path='sound_detection_config.json', sample_rate=16000, buffer_duration=1.0)
         detector.initialize()
         
         def create_detection_callback(source_name, webhook_url=None):
@@ -241,9 +241,45 @@ def run_detection(model, max_results, score_threshold, overlapping_factor, socke
         
         def create_labels_callback(source_name):
             def handle_labels(labels):
-                logging.debug(f"Labels détectés sur {source_name}: {labels}")
-                if socketio:
-                    socketio.emit("labels", {"source": source_name, "detected": labels})
+                try:
+                    if not labels:
+                        logging.debug(f"Aucun label détecté sur {source_name}")
+                        return
+
+                    # Formater les labels pour inclure le score
+                    formatted_labels = []
+                    for label in labels:
+                        if isinstance(label, dict) and 'label' in label and 'score' in label:
+                            formatted_labels.append({
+                                "label": label['label'],
+                                "score": float(label['score'])
+                            })
+                        elif hasattr(label, 'category_name') and hasattr(label, 'score'):
+                            # Pour les objets de type Classification
+                            formatted_labels.append({
+                                "label": label.category_name,
+                                "score": float(label.score)
+                            })
+
+                    # Filtrer les scores trop faibles
+                    formatted_labels = [label for label in formatted_labels if label['score'] > 0.1]
+
+                    if not formatted_labels:
+                        logging.warning(f"Aucun label valide reçu de {source_name}")
+                        return
+
+                    logging.info(f"Labels détectés sur {source_name}: {formatted_labels}")
+                    
+                    # Envoyer les labels avec la source
+                    send_labels({
+                        "detected": formatted_labels,
+                        "source": source_name
+                    })
+                    logging.debug("Labels envoyés via Socket.IO")
+                except Exception as e:
+                    logging.error(f"Erreur dans le callback des labels: {str(e)}")
+                    import traceback
+                    logging.error(traceback.format_exc())
             return handle_labels
         
         # Vérifier si une source audio est configurée

@@ -51,9 +51,16 @@ class AudioDetector:
     def initialize(self, max_results=5, score_threshold=0.3):
         """Initialise le classificateur audio"""
         try:
+            # Vérifier si le classificateur existe déjà
+            if self.classifier:
+                logging.warning("Le classificateur existe déjà, réinitialisation...")
+                self.classifier.close()
+                self.classifier = None
+
+            # Configurer les options de base
             base_options = python.BaseOptions(model_asset_path=self.model_path)
             
-            # Créer un seul classificateur en mode stream
+            # Configurer les options du classificateur audio
             options = audio.AudioClassifierOptions(
                 base_options=base_options,
                 running_mode=audio.RunningMode.AUDIO_STREAM,
@@ -61,16 +68,30 @@ class AudioDetector:
                 score_threshold=score_threshold,
                 result_callback=self._handle_result
             )
+
+            # Créer le classificateur
             self.classifier = audio.AudioClassifier.create_from_options(options)
+            
+            # Initialiser le temps de démarrage
+            self.start_time_ms = int(time.time() * 1000)
             self.running = True
-            logging.info(f"Classificateur audio initialisé avec succès (sample_rate: {self.sample_rate}Hz)")
-            logging.info(f"Options du classificateur: max_results={max_results}, score_threshold={score_threshold}")
+
+            # Log de confirmation
+            logging.info(f"Classificateur audio initialisé avec succès:")
+            logging.info(f"- Sample rate: {self.sample_rate}Hz")
+            logging.info(f"- Buffer size: {self.buffer_size} échantillons")
+            logging.info(f"- Max results: {max_results}")
+            logging.info(f"- Score threshold: {score_threshold}")
+            
+            return True
+
         except Exception as e:
             logging.error(f"Erreur lors de l'initialisation du classificateur: {str(e)}")
             import traceback
             logging.error(traceback.format_exc())
-            raise
-        
+            self.running = False
+            return False
+
     def add_source(self, source_id, detection_callback=None, labels_callback=None):
         """Ajoute une nouvelle source audio avec ses callbacks"""
         with self.lock:
@@ -103,12 +124,43 @@ class AudioDetector:
     def _handle_result(self, result, timestamp):
         """Gère les résultats de classification"""
         try:
-            if not result or not result.classifications or not self.current_source_id:
+            if not result or not result.classifications:
+                logging.debug("Pas de résultat de classification")
+                return
+            if not self.current_source_id:
+                logging.debug("Pas de source_id courant")
                 return
                 
             classification = result.classifications[0]
             source_id = self.current_source_id
             current_time = time.time()
+
+            # Log des catégories détectées
+            logging.info("Catégories détectées:")
+            for category in classification.categories:
+                logging.info(f"- {category.category_name}: {category.score:.3f}")
+
+            # Préparer les labels pour le callback
+            detected_labels = [
+                {"label": cat.category_name, "score": float(cat.score)}
+                for cat in classification.categories
+                if cat.score > 0.1
+            ]
+
+            logging.info(f"Labels préparés pour le callback: {detected_labels}")
+
+            # Appeler le callback des labels s'il existe
+            if source_id in self.sources and self.sources[source_id]['labels_callback']:
+                try:
+                    logging.info(f"Appel du callback des labels pour la source {source_id}")
+                    self.sources[source_id]['labels_callback'](detected_labels)
+                    logging.info("Callback des labels exécuté avec succès")
+                except Exception as e:
+                    logging.error(f"Erreur dans le callback des labels: {str(e)}")
+                    import traceback
+                    logging.error(traceback.format_exc())
+            else:
+                logging.warning(f"Pas de callback des labels pour la source {source_id}")
             
             # Pour chaque configuration de son
             for sound_config in self.sound_configs:
@@ -144,11 +196,7 @@ class AudioDetector:
                         'score': float(score_sum),
                         'source_id': source_id,
                         'sound_type': sound_name,
-                        'detected_labels': [
-                            {"label": cat.category_name, "score": float(cat.score)}
-                            for cat in classification.categories
-                            if cat.score > 0.1
-                        ]
+                        'detected_labels': detected_labels
                     }
                     
                     # Envoyer le webhook

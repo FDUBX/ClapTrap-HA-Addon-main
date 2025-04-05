@@ -1,6 +1,6 @@
 {
     "global": {
-        "threshold": "0.1",
+        "threshold": "0.5",
         "delay": "1.0",
         "chunk_duration": "0.5",
         "buffer_duration": "1.0"
@@ -8,24 +8,25 @@
     "microphone": {
         "device_index": "0",
         "audio_source": "default",
-        "webhook_url": "http://10.0.0.5:8123/api/webhook/-QfVa3c21jqlER5wSrGebErrZ",
-        "enabled": false
+        "webhook_url": "",
+        "enabled": true
     },
-    "rtsp_sources": [
+    "rtsp_sources": [],
+    "saved_vban_sources": [
         {
-            "id": "e9d4d25b-0c3e-4d0f-985f-7fe8ab21e05d",
-            "name": "rtsp_source",
-            "url": "rtsp://localhost:8554/mic",
-            "webhook_url": "http://homeassistant.local:8123/api/webhook/--25hJhvaYrsL9IxLKXyyEjvV",
-            "enabled": false
+            "name": "Esp32Mic",
+            "ip": "172.17.0.1",
+            "port": 6980,
+            "stream_name": "Esp32Mic",
+            "webhook_url": "",
+            "enabled": true
         }
     ],
-    "saved_vban_sources": [],
     "vban": {
         "stream_name": "",
         "ip": "0.0.0.0",
         "port": 6980,
         "webhook_url": "",
-        "enabled": false
+        "enabled": true
     }
 }
